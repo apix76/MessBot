@@ -49,20 +49,21 @@ func Framework(conf Conf.Conf) error {
 							return err
 						}
 					} else {
-						post := Post.PostCreateState{State: 0, RedactionFlag: true, SenderID: update.Message.Chat.ID, Data: "", StreamName: "", Game: "", Comments: "", Contact: "", ValuePersons: "", Duration: ""}
+						post := Post.PostCreateState{State: 0, RedactionFlag: true, SenderID: update.Message.Chat.ID}
 						PostMaps[update.Message.Chat.ID] = post
 						if err := StagesDescription(bot, post.State, update.Message.Chat.ID); err != nil {
 							return err
 						}
 					}
 				case "/start":
-					mes := tgbotapi.NewMessage(update.Message.Chat.ID, "\n\nДля подачи заявки на публикацию в канале, распишите ваш пост в обычном сообщении, так же вы можете прикрепить картинку. Мы сообщим вам как пост пройдёт модерацию")
+					mes := tgbotapi.NewMessage(update.Message.Chat.ID, "\n\nДля подачи заявки на публикацию в канале выбурете команду /newpost или нажмите на кнопку \"Создать пост\" ниже")
+					mes.BaseChat.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Создать пост", "Создать пост")))
 					_, err = bot.Send(mes)
 					if err != nil {
 						return err
 					}
-				case "/info": //TODO Работа бота изменена, переписать информацию
-					mes := tgbotapi.NewMessage(update.Message.Chat.ID, "\n\nДля подачи заявления на рассмотрение вашего поста, , так же вы можете прикрепить картинку. Мы сообщим вам как пост пройдут модерацию")
+				case "/info":
+					mes := tgbotapi.NewMessage(update.Message.Chat.ID, "\n\nДля подачи заявления на публикацию вашего поста используйте комманду создания нового поста /newpost.")
 					_, err = bot.Send(mes)
 					if err != nil {
 						return err
@@ -77,7 +78,7 @@ func Framework(conf Conf.Conf) error {
 				continue
 			}
 		}
-		//Миграция/изменение id чата
+
 		if update.Message != nil {
 			if update.Message.MigrateToChatID != 0 {
 				if conf.ModersChat == update.Message.MigrateFromChatID {
@@ -88,8 +89,6 @@ func Framework(conf Conf.Conf) error {
 					continue
 				}
 			}
-
-			//Отказ в публикации
 
 			if update.Message.Chat.ID == conf.ModersChat {
 				moderId := update.Message.From.ID
@@ -141,6 +140,19 @@ func Framework(conf Conf.Conf) error {
 			}
 
 			switch update.CallbackQuery.Data {
+			case "Создать пост": //todo
+				if _, ok := PostMaps[update.CallbackQuery.Message.Chat.ID]; ok {
+					mes := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Вы не можите начать создавать новый пост пока не закончите/отмените предыдущи")
+					if _, err := bot.Send(mes); err != nil {
+						return err
+					}
+				} else {
+					post := Post.PostCreateState{State: 0, RedactionFlag: true, SenderID: update.CallbackQuery.Message.Chat.ID}
+					PostMaps[update.CallbackQuery.Message.Chat.ID] = post
+					if err := StagesDescription(bot, post.State, update.CallbackQuery.Message.Chat.ID); err != nil {
+						return err
+					}
+				}
 			case "Отменить пост":
 				mes := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Пост отменён")
 				if _, err := bot.Send(mes); err != nil {
